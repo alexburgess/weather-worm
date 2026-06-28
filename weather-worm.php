@@ -3,7 +3,7 @@
  * Plugin Name: Weather Worm
  * Plugin URI: https://example.com/
  * Description: Display WeatherLink current conditions through configurable WordPress shortcodes.
- * Version: 1.0.1
+ * Version: 1.0.2
  * Author: Alex Burgess
  * License: GPLv2 or later
  * Text Domain: weather-worm
@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('WEATHER_WORM_VERSION', '1.0.1');
+define('WEATHER_WORM_VERSION', '1.0.2');
 define('WEATHER_WORM_PLUGIN_FILE', __FILE__);
 define('WEATHER_WORM_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('WEATHER_WORM_PLUGIN_URL', plugin_dir_url(__FILE__));

@@ -342,7 +342,9 @@ class Weather_Worm_Plugin {
         $definition = isset($definitions[$tag]) ? $definitions[$tag] : array('metric' => 'temp', 'format' => 'value');
         $atts = is_array($atts) ? $atts : array();
         $atts['metric'] = $definition['metric'];
-        if (!isset($atts['format']) || trim((string) $atts['format']) === '') {
+        $has_format = isset($atts['format']) && trim((string) $atts['format']) !== '';
+        $has_value_alias = isset($atts['value']) && trim((string) $atts['value']) !== '';
+        if (!$has_format && !$has_value_alias) {
             $atts['format'] = $definition['format'];
         }
 
@@ -355,12 +357,16 @@ class Weather_Worm_Plugin {
                 'id' => 'stone-tower-current',
                 'metric' => 'temp',
                 'format' => 'value',
+                'value' => '',
                 'decimals' => '',
                 'fallback' => '',
             ),
             $atts,
             $tag !== '' ? $tag : 'weather_worm_value'
         );
+        if ($atts['value'] !== '' && $atts['format'] === 'value') {
+            $atts['format'] = $atts['value'];
+        }
 
         $config = $this->get_shortcode_config($atts['id']);
         if (is_wp_error($config)) {

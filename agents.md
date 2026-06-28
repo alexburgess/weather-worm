@@ -14,7 +14,7 @@ Public plugin identity:
 - Plugin name: `Weather Worm`
 - Text domain/menu slug: `weather-worm`
 - Main plugin file: `weather-worm.php`
-- Current version: `1.0.0`
+- Current version: `1.0.2`
 - License: GPLv2 or later
 
 ## Repository Layout
@@ -116,7 +116,8 @@ Generic form:
 ```
 
 Supported raw `format` values are `value`, `display`, `unit`, `label`, `time`,
-`direction`, and `direction_degrees`.
+`direction`, and `direction_degrees`. `value="direction_degrees"` is accepted as
+a compatibility alias for `format="direction_degrees"` on raw shortcodes.
 
 ## WeatherLink Integration
 

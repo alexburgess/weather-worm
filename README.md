@@ -73,6 +73,9 @@ Supported `format` values are `value`, `display`, `unit`, `label`, `time`,
 raw normalized number where possible. Add `decimals="1"` when you want WordPress
 number formatting with a fixed number of decimals.
 
+For convenience, `value="direction_degrees"` is accepted as an alias for
+`format="direction_degrees"` on raw shortcodes.
+
 During local development only, activation will prefill missing settings from a
 plugin-root `.env` file with these keys:
 
