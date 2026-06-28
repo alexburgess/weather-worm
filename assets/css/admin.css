@@ -288,6 +288,25 @@
   margin-bottom: 12px;
 }
 
+.weather-worm-raw-examples {
+  background: #f6f7f7;
+  border: 1px solid #dcdcde;
+  border-radius: 8px;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+}
+
+.weather-worm-raw-examples ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 0;
+}
+
+.weather-worm-raw-examples li {
+  margin: 0;
+}
+
 .weather-worm-shortcode-grid {
   display: grid;
   gap: 14px;

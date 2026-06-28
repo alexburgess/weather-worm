@@ -22,8 +22,8 @@ Public plugin identity:
 - `weather-worm.php`: Plugin header, constants, includes, activation/deactivation
   hooks, and singleton bootstrap.
 - `includes/class-weather-worm-plugin.php`: Main plugin class. Owns settings,
-  admin pages, form handlers, shortcode CRUD, shortcode rendering, and local
-  `.env` prefill on activation.
+  admin pages, form handlers, shortcode CRUD, card shortcode rendering, raw
+  value shortcode rendering, and local `.env` prefill on activation.
 - `includes/class-weather-worm-client.php`: WeatherLink v2 client. Owns
   credentials, encrypted secret helpers, HTTP requests, transient cache keys,
   cache clearing, current-condition normalization, and visitor-safe metric
@@ -82,6 +82,42 @@ Admin tabs:
 Shortcode configs include an ID slug, title, station ID, station label, optional
 sensor LSID override, show-station toggle, and selected metric keys.
 
+The styled card shortcode remains:
+
+```text
+[weather_worm id="stone-tower-current"]
+```
+
+Raw value shortcodes output escaped text only, with no wrapper element. Useful
+shortcodes:
+
+```text
+[weather_worm_temperature]
+[weather_worm_temperature_display]
+[weather_worm_humidity]
+[weather_worm_humidity_display]
+[weather_worm_wind_speed]
+[weather_worm_wind_speed_display]
+[weather_worm_wind_direction]
+[weather_worm_wind_direction_degrees]
+[weather_worm_rain_today]
+[weather_worm_rain_rate]
+[weather_worm_barometer]
+[weather_worm_dew_point]
+[weather_worm_heat_index]
+[weather_worm_last_updated]
+[weather_worm_station_name]
+```
+
+Generic form:
+
+```text
+[weather_worm_value id="stone-tower-current" metric="temp" format="value"]
+```
+
+Supported raw `format` values are `value`, `display`, `unit`, `label`, `time`,
+`direction`, and `direction_degrees`.
+
 ## WeatherLink Integration
 
 Weather Worm uses WeatherLink v2:
@@ -97,6 +133,12 @@ LSID. Barometer data is merged from the barometer sensor when available.
 Visitor-facing metrics are intentionally limited to current conditions:
 temperature, humidity, wind, rain today, rain rate, barometer, dew point, heat
 index, and last updated.
+
+WeatherLink.com shows a Local Forecast dashboard tile, but the official v2 docs
+checked for this plugin expose station metadata and weather observation
+endpoints, not a forecast endpoint. For a local forecast on this US station, use
+a separate source such as the National Weather Service API based on the station
+latitude/longitude.
 
 ## Development Checks
 
@@ -158,3 +200,12 @@ Post-publish checks from 2026-06-28:
   metrics for station `117715`.
 - `[weather_worm id="stone-tower-current"]` rendered a Weather Worm card with
   the Stone Tower Winery label.
+
+Post-update checks from 2026-06-28 for raw value shortcodes:
+
+- `weather-worm` remained active after deploy.
+- Remote PHP syntax checks passed for all deployed PHP files.
+- `[weather_worm_temperature]`, `[weather_worm_humidity]`,
+  `[weather_worm_wind_direction]`, and
+  `[weather_worm_value metric="barometer" format="display"]` rendered non-empty
+  raw text from live WeatherLink data.

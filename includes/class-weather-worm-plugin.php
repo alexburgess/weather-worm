@@ -83,6 +83,32 @@ class Weather_Worm_Plugin {
         return array('temp', 'hum', 'wind', 'rain_today', 'rain_rate', 'barometer', 'dew_point', 'heat_index', 'last_updated');
     }
 
+    public static function raw_value_shortcodes() {
+        return array(
+            'weather_worm_temperature' => array('metric' => 'temp', 'format' => 'value'),
+            'weather_worm_temperature_display' => array('metric' => 'temp', 'format' => 'display'),
+            'weather_worm_humidity' => array('metric' => 'hum', 'format' => 'value'),
+            'weather_worm_humidity_display' => array('metric' => 'hum', 'format' => 'display'),
+            'weather_worm_wind_speed' => array('metric' => 'wind', 'format' => 'value'),
+            'weather_worm_wind_speed_display' => array('metric' => 'wind', 'format' => 'display'),
+            'weather_worm_wind_direction' => array('metric' => 'wind', 'format' => 'direction'),
+            'weather_worm_wind_direction_degrees' => array('metric' => 'wind', 'format' => 'direction_degrees'),
+            'weather_worm_rain_today' => array('metric' => 'rain_today', 'format' => 'value'),
+            'weather_worm_rain_today_display' => array('metric' => 'rain_today', 'format' => 'display'),
+            'weather_worm_rain_rate' => array('metric' => 'rain_rate', 'format' => 'value'),
+            'weather_worm_rain_rate_display' => array('metric' => 'rain_rate', 'format' => 'display'),
+            'weather_worm_barometer' => array('metric' => 'barometer', 'format' => 'value'),
+            'weather_worm_barometer_display' => array('metric' => 'barometer', 'format' => 'display'),
+            'weather_worm_dew_point' => array('metric' => 'dew_point', 'format' => 'value'),
+            'weather_worm_dew_point_display' => array('metric' => 'dew_point', 'format' => 'display'),
+            'weather_worm_heat_index' => array('metric' => 'heat_index', 'format' => 'value'),
+            'weather_worm_heat_index_display' => array('metric' => 'heat_index', 'format' => 'display'),
+            'weather_worm_last_updated' => array('metric' => 'last_updated', 'format' => 'time'),
+            'weather_worm_last_updated_timestamp' => array('metric' => 'last_updated', 'format' => 'value'),
+            'weather_worm_station_name' => array('metric' => 'station_label', 'format' => 'value'),
+        );
+    }
+
     private function __construct() {
         $this->settings = self::get_settings();
         $this->client = new Weather_Worm_Client($this->settings);
@@ -92,6 +118,10 @@ class Weather_Worm_Plugin {
         add_action('wp_enqueue_scripts', array($this, 'enqueue_frontend_assets'));
         add_filter('admin_footer_text', array($this, 'filter_admin_footer_text'), 20, 1);
         add_shortcode('weather_worm', array($this, 'render_shortcode'));
+        add_shortcode('weather_worm_value', array($this, 'render_value_shortcode'));
+        foreach (self::raw_value_shortcodes() as $shortcode => $definition) {
+            add_shortcode($shortcode, array($this, 'render_named_value_shortcode'));
+        }
 
         add_action('admin_post_weather_worm_save_settings', array($this, 'handle_save_settings'));
         add_action('admin_post_weather_worm_test_connection', array($this, 'handle_test_connection'));
@@ -305,6 +335,57 @@ class Weather_Worm_Plugin {
         }
 
         return $this->render_weather_card($normalized, $config, false);
+    }
+
+    public function render_named_value_shortcode($atts, $content = null, $tag = '') {
+        $definitions = self::raw_value_shortcodes();
+        $definition = isset($definitions[$tag]) ? $definitions[$tag] : array('metric' => 'temp', 'format' => 'value');
+        $atts = is_array($atts) ? $atts : array();
+        $atts['metric'] = $definition['metric'];
+        if (!isset($atts['format']) || trim((string) $atts['format']) === '') {
+            $atts['format'] = $definition['format'];
+        }
+
+        return $this->render_value_shortcode($atts, $content, $tag);
+    }
+
+    public function render_value_shortcode($atts, $content = null, $tag = '') {
+        $atts = shortcode_atts(
+            array(
+                'id' => 'stone-tower-current',
+                'metric' => 'temp',
+                'format' => 'value',
+                'decimals' => '',
+                'fallback' => '',
+            ),
+            $atts,
+            $tag !== '' ? $tag : 'weather_worm_value'
+        );
+
+        $config = $this->get_shortcode_config($atts['id']);
+        if (is_wp_error($config)) {
+            return esc_html((string) $atts['fallback']);
+        }
+
+        $current = $this->client->get_current($config['station_id']);
+        if (is_wp_error($current)) {
+            return esc_html((string) $atts['fallback']);
+        }
+
+        $normalized = $this->client->normalize_current($current, $config);
+        $value = $this->get_raw_shortcode_value(
+            $this->normalize_metric_key($atts['metric']),
+            sanitize_key((string) $atts['format']),
+            $atts,
+            $normalized,
+            $config
+        );
+
+        if ($value === null || $value === '') {
+            return esc_html((string) $atts['fallback']);
+        }
+
+        return esc_html((string) $value);
     }
 
     public function handle_save_settings() {
@@ -650,6 +731,7 @@ class Weather_Worm_Plugin {
             echo '<code>[weather_worm id="' . esc_attr($id) . '"]</code>';
             echo '<button type="button" class="button weather-worm-copy-shortcode" data-shortcode="' . esc_attr('[weather_worm id="' . $id . '"]') . '"><i class="fa-duotone fa-clipboard" aria-hidden="true"></i> ' . esc_html__('Copy', 'weather-worm') . '</button>';
             echo '</div>';
+            $this->render_raw_shortcode_examples($id);
         }
 
         echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '">';
@@ -687,6 +769,26 @@ class Weather_Worm_Plugin {
             echo '<button type="submit" class="button weather-worm-button-danger" data-confirm="' . esc_attr__('Delete this shortcode configuration?', 'weather-worm') . '"><i class="fa-duotone fa-trash" aria-hidden="true"></i> ' . esc_html__('Delete', 'weather-worm') . '</button>';
             echo '</form>';
         }
+        echo '</div>';
+    }
+
+    private function render_raw_shortcode_examples($id) {
+        $examples = array(
+            '[weather_worm_temperature id="' . $id . '"]',
+            '[weather_worm_humidity id="' . $id . '"]',
+            '[weather_worm_wind_speed id="' . $id . '"]',
+            '[weather_worm_wind_direction id="' . $id . '"]',
+            '[weather_worm_rain_today id="' . $id . '"]',
+            '[weather_worm_value id="' . $id . '" metric="barometer" format="display"]',
+        );
+
+        echo '<div class="weather-worm-raw-examples">';
+        echo '<strong>' . esc_html__('Raw value examples', 'weather-worm') . '</strong>';
+        echo '<ul>';
+        foreach ($examples as $example) {
+            echo '<li><code>' . esc_html($example) . '</code></li>';
+        }
+        echo '</ul>';
         echo '</div>';
     }
 
@@ -745,6 +847,120 @@ class Weather_Worm_Plugin {
 
     private function render_about_row($label, $value) {
         echo '<tr><th scope="row">' . esc_html($label) . '</th><td><code>' . esc_html((string) $value) . '</code></td></tr>';
+    }
+
+    private function get_shortcode_config($id) {
+        $id = sanitize_title((string) $id);
+        if ($id === '') {
+            $id = 'stone-tower-current';
+        }
+
+        $shortcodes = isset($this->settings['shortcodes']) && is_array($this->settings['shortcodes']) ? $this->settings['shortcodes'] : array();
+        if (!isset($shortcodes[$id]) || !is_array($shortcodes[$id])) {
+            return new WP_Error(
+                'weather_worm_missing_shortcode_config',
+                __('Weather Worm shortcode configuration was not found.', 'weather-worm')
+            );
+        }
+
+        return $shortcodes[$id];
+    }
+
+    private function normalize_metric_key($metric) {
+        $metric = sanitize_key((string) $metric);
+        $aliases = array(
+            'temperature' => 'temp',
+            'outside_temp' => 'temp',
+            'humidity' => 'hum',
+            'wind_speed' => 'wind',
+            'wind_direction' => 'wind',
+            'wind_dir' => 'wind',
+            'rain' => 'rain_today',
+            'rainfall' => 'rain_today',
+            'daily_rain' => 'rain_today',
+            'current_rain' => 'rain_rate',
+            'pressure' => 'barometer',
+            'bar' => 'barometer',
+            'dewpoint' => 'dew_point',
+            'updated' => 'last_updated',
+            'timestamp' => 'last_updated',
+            'station' => 'station_label',
+            'station_name' => 'station_label',
+        );
+
+        return isset($aliases[$metric]) ? $aliases[$metric] : $metric;
+    }
+
+    private function get_raw_shortcode_value($metric_key, $format, $atts, $normalized, $config) {
+        if ($metric_key === 'station_label') {
+            return isset($config['station_label']) ? (string) $config['station_label'] : '';
+        }
+
+        if ($metric_key === 'station_id') {
+            return isset($config['station_id']) ? (string) absint($config['station_id']) : '';
+        }
+
+        if ($metric_key === 'sensor_lsid') {
+            return isset($normalized['lsid']) && absint($normalized['lsid']) > 0 ? (string) absint($normalized['lsid']) : '';
+        }
+
+        $metrics = isset($normalized['metrics']) && is_array($normalized['metrics']) ? $normalized['metrics'] : array();
+        if (!isset($metrics[$metric_key]) || !is_array($metrics[$metric_key])) {
+            return '';
+        }
+
+        $metric = $metrics[$metric_key];
+        if ($format === '') {
+            $format = 'value';
+        }
+
+        if ($format === 'display') {
+            if ($metric_key === 'last_updated') {
+                return $this->format_timestamp(isset($metric['value']) ? (int) $metric['value'] : 0);
+            }
+
+            return isset($metric['display']) ? (string) $metric['display'] : '';
+        }
+
+        if ($format === 'time') {
+            return $this->format_timestamp(isset($metric['value']) ? (int) $metric['value'] : 0);
+        }
+
+        if ($format === 'unit') {
+            return isset($metric['unit']) ? (string) $metric['unit'] : '';
+        }
+
+        if ($format === 'label') {
+            return isset($metric['label']) ? (string) $metric['label'] : '';
+        }
+
+        if ($format === 'direction') {
+            return isset($metric['direction_label']) ? (string) $metric['direction_label'] : '';
+        }
+
+        if ($format === 'direction_degrees') {
+            return isset($metric['direction']) ? $this->format_raw_number($metric['direction'], $atts) : '';
+        }
+
+        if ($metric_key === 'last_updated') {
+            return isset($metric['value']) ? (string) absint($metric['value']) : '';
+        }
+
+        return isset($metric['value']) ? $this->format_raw_number($metric['value'], $atts) : '';
+    }
+
+    private function format_raw_number($value, $atts) {
+        if (!is_numeric($value)) {
+            return '';
+        }
+
+        $decimals = isset($atts['decimals']) && $atts['decimals'] !== '' ? absint($atts['decimals']) : null;
+        if ($decimals !== null) {
+            return number_format_i18n((float) $value, min(6, $decimals));
+        }
+
+        $formatted = rtrim(rtrim(sprintf('%.6F', (float) $value), '0'), '.');
+        return $formatted === '-0' ? '0' : $formatted;
     }
 
     private function render_weather_card($normalized, $config, $admin_preview) {
